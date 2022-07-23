@@ -10,6 +10,8 @@ import logging
 import collections
 import re
 
+vcard_dir=os.path.join(os.path.dirname(os.path.abspath(__file__)), "Contacts", "test")
+
 gc = [
     '\n', 
     '\\',
@@ -426,21 +428,28 @@ def writable_file(path):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description='Convert a bunch of vCard (.vcf) files to a single TSV file.'
-    )
+    parser = argparse.ArgumentParser(description='Convert a bunch of vCard (.vcf) files to a single CSV file.')
+    parser.version = '1.0'
+    # parser.add_argument('--h',
+        # help='Convert a bunch of vCard (.vcf) files to a single CSV file.'
+    # )
+    # parser = argparse.ArgumentParser(
+    #     description='Convert a bunch of vCard (.vcf) files to a single CSV file.'
+    # )
     parser.add_argument(
-        'read_dir',
+        '-i',
+        metavar = '<in path>',
         type=readable_directory,
         help='Directory to read vCard files from.'
     )
     parser.add_argument(
-        'tsv_file',
+        '-o',
+        metavar = "<out file path>",
         type=writable_file,
         help='Output file',
     )
     parser.add_argument(
-        '-v',
+        '-V',
         '--verbose',
         help='More verbose logging',
         dest="loglevel",
@@ -451,32 +460,46 @@ def main():
     parser.add_argument(
         '-d',
         '--debug',
-        help='Enable debugging logs',
+        help='Enable debugging logs (INFO, LOG, WARN, TRACE, DEBUG, ERROR, FATAL)',
         action="store_const",
         dest="loglevel",
         const=logging.DEBUG,
     )
-    args = parser.parse_args()
-    logging.basicConfig(level=args.loglevel)
+    opts = parser.parse_args()
+    # args = parser.parse_args()
+    logging.basicConfig(level=opts.loglevel)
+    # print("---- in ", opts.i)
+    # print("---- out", opts.o )
 
-    vcard_pattern = os.path.join(args.read_dir, "*.vcf")
-    vcard_paths = sorted(glob.glob(vcard_pattern))
-    if len(vcard_paths) == 0:
-        logging.error("no files ending with `.vcf` in directory `{}'".format(args.read_dir))
-        sys.exit(2)
+    if not opts.i:
+        # print("Parser:", opts)
+        parser.print_help()
+        opts.i = vcard_dir
+        print("opt.i:", opts.i)
 
-    # with open(args.tsv_file, 'w') as tsv_fp:
+    if opts.i:
+        vcard_pattern = os.path.join(opts.i, "*.vcf")
+        print("PATERN:",vcard_pattern)
+        vcard_paths = sorted(glob.glob(vcard_pattern))
+
+    # if vcard_pattern:
+
+        if len(vcard_paths) == 0:
+            logging.error("no files ending with `.vcf` in directory `{}'".format(opts.read_dir))
+            sys.exit(2)
+    # if opts.o:
+    # with open(opts.o, 'w') as tsv_fp:
     #     writer = csv.writer(tsv_fp, delimiter=',')
     #     writer.writerow(column_order)
 
-    for vcard_path in vcard_paths:
-        for vcard in get_vcards(vcard_path):
-            # print("\n--- vCard Info end ---\n")
-            vcard_info = get_info_list(vcard, vcard_path)
-            # print("--- vCard Info begin ---\n", vcard_info)
-            # writer.writerow(list(vcard_info.values()))
-            # print(list(vcard_info.values()))
-    
+        for vcard_path in vcard_paths:
+            for vcard in get_vcards(vcard_path):
+                # print("\n--- vCard Info end ---\n")
+                vcard_info = get_info_list(vcard, vcard_path)
+                # print("--- vCard Info begin ---\n", vcard_info)
+                # writer.writerow(list(vcard_info.values()))
+                # print(list(vcard_info.values()))
+        
 
 
 

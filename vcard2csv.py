@@ -173,47 +173,157 @@ states_abrr = {
 }
 
 def get_phone_numbers(vCard):
-    cell = home = work = other = None
+    phone_number = {}
+    def check_key(dict, key):
+        if key in dict.keys():
+            return True
+        else:
+            return False
+
+    # cell = home = work = other = None
     for tel in vCard.tel_list:
         if vCard.version.value == '2.1':
             if 'CELL' in tel.singletonparams:
-                cell = str(tel.value).strip()
+                phone_number['Phone 1 - Type'] = 'Mobile'
+                phone_number['Phone 1 - Value'] = str(tel.value).strip()
             elif 'WORK' in tel.singletonparams:
-                work = str(tel.value).strip()
+                if not check_key(phone_number, 'Phone 1 - Type'):
+                    phone_number['Phone 1 - Type'] = 'Work'
+                    phone_number['Phone 1 - Value'] = str(tel.value).strip()
+                elif not check_key(phone_number, 'Phone 2 - Type'):
+                    phone_number['Phone 2 - Type'] = 'Work'
+                    phone_number['Phone 2 - Value'] = str(tel.value).strip()
             elif 'HOME' in tel.singletonparams:
-                home = str(tel.value).strip()
+                if not check_key(phone_number, 'Phone 1 - Type'):
+                    phone_number['Phone 1 - Type'] = 'Home'
+                    phone_number['Phone 1 - Value'] = str(tel.value).strip()
+                elif not check_key(phone_number, 'Phone 2 - Type'):
+                    phone_number['Phone 2 - Type'] = 'Home'
+                    phone_number['Phone 2 - Value'] = str(tel.value).strip()
+                elif not check_key(phone_number, 'Phone 3 - Type'):
+                    phone_number['Phone 3 - Type'] = 'home'
+                    phone_number['Phone 3 - Value'] = str(tel.value).strip()
             elif 'MAIN' in tel.singletonparams:
-                work = str(tel.value).strip()
+                if not check_key(phone_number, 'Phone 1 - Type'):
+                    phone_number['Phone 1 - Type'] = 'Work'
+                    phone_number['Phone 1 - Value'] = str(tel.value).strip()
+                elif not check_key(phone_number, 'Phone 2 - Type'):
+                    phone_number['Phone 2 - Type'] = 'Work'
+                    phone_number['Phone 2 - Value'] = str(tel.value).strip()
+                elif not check_key(phone_number, 'Phone 3 - Type'):
+                    phone_number['Phone 3 - Type'] = 'Work'
+                    phone_number['Phone 3 - Value'] = str(tel.value).strip()
+                elif not check_key(phone_number, 'Phone 4 - Type'):
+                    phone_number['Phone 4 - Type'] = 'Work'
+                    phone_number['Phone 4 - Value'] = str(tel.value).strip()
             elif 'OTHER' in tel.singletonparams:
-                other = str(tel.value).strip()
+                if not check_key(phone_number, 'Phone 1 - Type'):
+                    phone_number['Phone 1 - Type'] = 'Other'
+                    phone_number['Phone 1 - Value'] = str(tel.value).strip()
+                elif not check_key(phone_number, 'Phone 2 - Type'):
+                    phone_number['Phone 2 - Type'] = 'Other'
+                    phone_number['Phone 2 - Value'] = str(tel.value).strip()
+                elif not check_key(phone_number, 'Phone 3 - Type'):
+                    phone_number['Phone 3 - Type'] = 'Other'
+                    phone_number['Phone 3 - Value'] = str(tel.value).strip()
+                elif not check_key(phone_number, 'Phone 4 - Type'):
+                    phone_number['Phone 4 - Type'] = 'Other'
+                    phone_number['Phone 4 - Value'] = str(tel.value).strip()
             elif 'pref' in tel.singletonparams:
-                other = str(tel.value).strip()
+                if check_key(phone_number, 'Phone 1 - Type'):
+                    phone_number['Phone 1 - Type'] = 'Other'
+                    phone_number['Phone 1 - Value'] = str(tel.value).strip()
+                elif not check_key(phone_number, 'Phone 2 - Type'):
+                    phone_number['Phone 2 - Type'] = 'Other'
+                    phone_number['Phone 2 - Value'] = str(tel.value).strip()
+                elif not check_key(phone_number, 'Phone 3 - Type'):
+                    phone_number['Phone 3 - Type'] = 'Other'
+                    phone_number['Phone 3 - Value'] = str(tel.value).strip()
+                elif not check_key(phone_number, 'Phone 4 - Type'):
+                    phone_number['Phone 4 - Type'] = 'Other'
+                    phone_number['Phone 4 - Value'] = str(tel.value).strip()
             else:
                 logging.warning("Warning: Unrecognized phone number category in `{}'".format(vCard))
                 tel.prettyPrint()
         elif vCard.version.value == '3.0':
-            if 'CELL' in tel.params['TYPE']:
-                cell = str(tel.value).strip()
-            elif 'WORK' in tel.params['TYPE']:
-                work = str(tel.value).strip()
-                print('################', work, '################')
-                if not work:
-                    print('################ NO ################')
-            elif 'HOME' in tel.params['TYPE']:
-                home = str(tel.value).strip()
-            elif 'MAIN' in tel.params['TYPE']:
-                work = str(tel.value).strip()
-            elif 'OTHER' in tel.params['TYPE']:
-                other = str(tel.value).strip()
-            elif 'pref' in tel.params['TYPE']:
-                other = str(tel.value).strip()
+            print("---", str(tel.value).strip(), tel.params['TYPE'])
+            if 'CELL' in tel.params['TYPE'] or 'VOICE' in tel.params['TYPE']:
+                # print('CELL:', str(tel.value).strip())
+                # print (check_key(phone_number, 'Phone 1 - Type'))
+                if not check_key(phone_number, 'Phone 1 - Type'):
+                    phone_number['Phone 1 - Type'] = 'Mobile'
+                    phone_number['Phone 1 - Value'] = str(tel.value).strip()
+                    print("CELPHONE Num:", phone_number['Phone 1 - Value'], phone_number['Phone 1 - Type'])
+            if 'HOME' in tel.params['TYPE']:
+                if not check_key(phone_number, 'Phone 1 - Type'):
+                    phone_number['Phone 1 - Type'] = 'home'
+                    phone_number['Phone 1 - Value'] = str(tel.value).strip()
+                elif not check_key(phone_number, 'Phone 2 - Type'):
+                    phone_number['Phone 2 - Type'] = 'Home'
+                    phone_number['Phone 2 - Value'] = str(tel.value).strip()
+            if 'WORK' in tel.params['TYPE'] or 'MAIN' in tel.params['TYPE']:
+                if not check_key(phone_number, 'Phone 1 - Type'):
+                    phone_number['Phone 1 - Type'] = 'Work'
+                    phone_number['Phone 1 - Value'] = str(tel.value).strip()
+                elif not check_key(phone_number, 'Phone 2 - Type'):
+                    phone_number['Phone 2 - Type'] = 'Work'
+                    phone_number['Phone 2 - Value'] = str(tel.value).strip()
+                elif not check_key(phone_number, 'Phone 3 - Type'):
+                    phone_number['Phone 3 - Type'] = 'Work'
+                    phone_number['Phone 3 - Value'] = str(tel.value).strip()
+            if 'FAX' in tel.params['TYPE']:
+                if not check_key(phone_number, 'Phone 1 - Type'):
+                    phone_number['Phone 1 - Type'] = 'Fax'
+                    phone_number['Phone 1 - Value'] = str(tel.value).strip()
+                elif not check_key(phone_number, 'Phone 2 - Type'):
+                    phone_number['Phone 2 - Type'] = 'Fax'
+                    phone_number['Phone 2 - Value'] = str(tel.value).strip()
+                elif not check_key(phone_number, 'Phone 3 - Type'):
+                    phone_number['Phone 3 - Type'] = 'Fax'
+                    phone_number['Phone 3 - Value'] = str(tel.value).strip()
+                elif not check_key(phone_number, 'Phone 4 - Type'):
+                    phone_number['Phone 4 - Type'] = 'Fax'
+                    phone_number['Phone 4 - Value'] = str(tel.value).strip()
+            if 'OTHER' in tel.params['TYPE'] or  'pref' in tel.params['TYPE']:
+                if not check_key(phone_number, 'Phone 1 - Type'):
+                    phone_number['Phone 1 - Type'] = 'Other'
+                    phone_number['Phone 1 - Value'] = str(tel.value).strip()
+                elif not check_key(phone_number, 'Phone 2 - Type'):
+                    phone_number['Phone 2 - Type'] = 'Other'
+                    phone_number['Phone 2 - Value'] = str(tel.value).strip()
+                elif not check_key(phone_number, 'Phone 3 - Type'):
+                    phone_number['Phone 3 - Type'] = 'Other'
+                    phone_number['Phone 3 - Value'] = str(tel.value).strip()
+                elif not check_key(phone_number, 'Phone 4 - Type'):
+                    phone_number['Phone 4 - Type'] = 'Other'
+                    phone_number['Phone 4 - Value'] = str(tel.value).strip()
             else:
                 logging.warning("Unrecognized phone number category in `{}'".format(vCard))
                 tel.prettyPrint()
         else:
             raise NotImplementedError("Version not implemented: {}".format(vCard.version.value))
-    print("CELL:", cell, "\tHOME:", home, "\tWORK:", work, "\tOTHER:", other)
-    return cell, home, work, other
+    # print("CELL:", cell, "\tHOME:", home, "\tWORK:", work, "\tOTHER:", other)
+    # return cell, home, work, other
+    print("Phone Number:", phone_number)
+    return phone_number
+
+def get_info_from_notes(vCard):
+    card = vCard.split('\n')
+    for item in card:
+        if 'Phone' in item:
+            # print("Phone:", item)
+            pass
+        elif 'Description' in item:
+            # print("Description:", item)
+            pass
+        elif 'Assigned to' in item:
+            # print("Assigned to:", item)
+            pass
+        elif 'Create Date' in item:
+            # print("Create Date:", item)
+            pass
+        # print("vCard:", item)
+
 
 def get_address(vCard):
     home = work = other = None
@@ -319,7 +429,7 @@ def get_address(vCard):
             raise NotImplementedError("Version not implemented: {}".format(vCard.version.value))
 
     # print(str(adr.value).strip(),"\nhome :", home, "\nwork :", work, "\nother:", other, "\n")
-    print("\nhome :", home, "\nwork :", work, "\nother:", other, "\n")
+    # print("\nhome :", home, "\nwork :", work, "\nother:", other, "\n")
 
 
         # "Address 1 - Type",
@@ -344,22 +454,23 @@ def get_info_list(vCard, vcard_filepath):
         # print("KEY:\t", key, "\tVALUES:\t", val)
         if key == 'fn':
             vcard['Full name'] = vCard.fn.value
-            print("Full NAME:", vCard.fn.value)
+            # print("Full NAME:", vCard.fn.value)
         elif key == 'n':
             name = str(vCard.n.valueRepr()).replace('  ', ' ').strip()
             vcard['Name'] = name
-            print("NAME:", name)
+            # print("NAME:", name)
         elif key == 'tel':
-            cell, home, work, other = get_phone_numbers(vCard)
+            # cell, home, work, other = get_phone_numbers(vCard)
+            print(get_phone_numbers(vCard))
             vcard['Cell phone'] = cell
             vcard['Home phone'] = home
             vcard['Work phone'] = work
             vcard['Other phone'] = other
-            print ("** CELL:", cell, "\tHOME:", home, "\tWORK:", work, "\tOTHER:", other)
+            # print ("** CELL:", cell, "\tHOME:", home, "\tWORK:", work, "\tOTHER:", other)
         elif key == 'email':
             email = str(vCard.email.value).strip()
             vcard['Email'] = email
-            print("EMAIL:", email)
+            # print("EMAIL:", email)
         elif key == 'adr':
             home, work, other = get_address(vCard)
             vcard['Home phone'] = home
@@ -368,14 +479,14 @@ def get_info_list(vCard, vcard_filepath):
         elif key == 'nickname':
             nickname = str(vCard.nickname.value)
             vcard['nickname'] = nickname
-            print("NICKNAME:", nickname)
+            # print("NICKNAME:", nickname)
         elif key == 'note':
             note = str(vCard.note.value)
             vcard['Note'] = note
         elif key == 'title':
             title = str(vCard.title.value)
             vcard['Note'] = title
-            print("TITLE:", title)
+            # print("TITLE:", title)
         else:
             # An unused key, like `adr`, `title`, `url`, etc.
             # print("***UNSUSED KEY***", key, "\t", val)
@@ -385,10 +496,12 @@ def get_info_list(vCard, vcard_filepath):
         logging.warning("no name for vCard in file `{}'".format(vcard_filepath))
     if all(telephone_number is None for telephone_number in [cell, work, home, other]):
         try:
-            print(vCard.note.value, type(vCard.note.value))
-            if 'Phone' in vCard.note.value:
+            get_info_from_notes(vCard.note.value)
+            # print("- vCard.note.value -\t", vCard.note.value.split('\n'), "- vCard.note.value type -\t", type(vCard.note.value))
+
+            if 'Phone' in str(vCard.note.value):
                 card =  vCard.note.value.split('\n')
-                print(card)
+                logging.info(">>> {}".format(card))
         except:
             pass
         # logging.warning("no telephone numbers for file `{}' with name `{}'".format(vcard_filepath, name))
@@ -460,7 +573,7 @@ def main():
     parser.add_argument(
         '-d',
         '--debug',
-        help='Enable debugging logs (INFO, LOG, WARN, TRACE, DEBUG, ERROR, FATAL)',
+        help='Enable debugging logs "default INFO" (INFO, LOG, WARN, TRACE, DEBUG, ERROR, FATAL)',
         action="store_const",
         dest="loglevel",
         const=logging.DEBUG,
@@ -473,19 +586,19 @@ def main():
 
     if not opts.i:
         # print("Parser:", opts)
-        parser.print_help()
+        # parser.print_help()
         opts.i = vcard_dir
-        print("opt.i:", opts.i)
+        # print("opt.i:", opts.i)
 
     if opts.i:
         vcard_pattern = os.path.join(opts.i, "*.vcf")
-        print("PATERN:",vcard_pattern)
+        # print("PATERN:",vcard_pattern)
         vcard_paths = sorted(glob.glob(vcard_pattern))
 
     # if vcard_pattern:
 
         if len(vcard_paths) == 0:
-            logging.error("no files ending with `.vcf` in directory `{}'".format(opts.read_dir))
+            logging.warning("no files ending with `.vcf` in directory `{}'".format(opts.read_dir))
             sys.exit(2)
     # if opts.o:
     # with open(opts.o, 'w') as tsv_fp:

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from gc import garbage
 from time import pthread_getcpuclockid
 import vobject
 import glob
@@ -14,32 +15,30 @@ import re
 vcard_dir=os.path.join(os.path.dirname(os.path.abspath(__file__)), "Contacts", "test")
 
 gc = [
-    '\n', 
-    '\\',
-    '&amp ', 
-    '&amp;',
-    'amp;',
-    'amp ,', 
-    '&AMP ,',
-    '&BR&,',
-    '<',
-    '%',
-    '  ', 
-    'GT;',
-    'gt;',
-    'LT;',
-    'lt;',
-    '.br',
-    'br',
-    '&',
-    ' , ',
+    '-',
+    ','
+    ':',
     '.',
+    '.br',
     '(',
     ')',
-    '-',
-    ' ',
-    ':',
-    ','
+    '\\',
+    '\n', 
+    '&',
+    '&AMP ,',
+    '&amp ', 
+    '&amp;',
+    '&BR&,',
+    '%',
+    '<',
+    'amp ,', 
+    'amp;',
+    'amp',
+    'br',
+    'gt;',
+    'GT;',
+    'lt;',
+    'LT;',
     ]
 
 prefix_dir = [
@@ -296,6 +295,18 @@ def get_address(vCard):
     RURAL RTE 3 BOX 10 		     RR 3
     SUTTER PLACE 			     Sutter    Pl
     '''
+    def clean_up_address (segment):
+        ''' Strip garbage charecter from address'''
+        card = []
+        for i in segment.replace('<br>', ' ').split():
+            adr_seg = strip_garbage(i)
+            print("---", i, "\t'" + adr_seg + "'---")
+            if adr_seg != '' or adr_seg != ',':
+                card.append(adr_seg)
+            if adr_seg == '' or adr_seg == ',':
+                print("####" + i + "####")
+        return card
+
     home = work = other = None
     adr_type = street = city = po_box = region = postal_code = country = ext = None
     for adr in vCard.adr_list:
@@ -312,18 +323,20 @@ def get_address(vCard):
             #     adr.prettyPrint()
         elif vCard.version.value == '3.0':
 
-            print("\n--- START ADDRESS ---\n",adr, "\n--- END ADDRESS ---\n")
-            if 'WORK' in adr.params['TYPE']:
-                out = str(adr.value).strip()
-                print("--- OUT ---", out)
+            # print("\n--- START ADDRESS ---\n",adr, "\n--- END ADDRESS ---\n")
+            if 'HOME' in adr.params['TYPE']:
+                out = clean_up_address(str(adr.value).strip())
+                print("--- HOME ---", out)
             elif 'WORK' in adr.params['TYPE']:
-                out = str(adr.value).strip()
-                print("--- OUT ---", out)
-            elif 'WORK' in adr.params['TYPE']:
-                out = str(adr.value).strip()
-                print("--- OUT ---", out)
+                out = clean_up_address(str(adr.value).strip())
+                print("--- WORK ---", out)
+            elif 'OTHER' in adr.params['TYPE']:
+                out = clean_up_address(str(adr.value).strip())
+                print("--- OTHER ---", out)
             else:
                 print("--- ### GET TO THe CHOPPA ### ---")
+                out = clean_up_address(str(adr.value).strip())
+                print("--- ELSE ---", out)
             #     for i in gc:
             #         if i in work:
             #              work = work.replace(i, ' ')
@@ -463,6 +476,7 @@ def get_info_list(vCard, vcard_filepath):
         # print(key)
         if key == 'fn':
             vcard['Given Name'] = vCard.fn.value
+            print("-----", vCard.fn.value, "-----")
         elif key == 'n':
             name = str(vCard.n.valueRepr()).replace('  ', ' ').strip()
             vcard['Name'] = name
@@ -491,7 +505,7 @@ def get_info_list(vCard, vcard_filepath):
             # vcard['Address 1 - Formatted'] = home
             # vcard['Address 1 - Formatted'] = work
             # vcard['Address 1 - Formatted'] = other
-            print(get_address(vCard))
+            out = get_address(vCard)
 
 
 
@@ -515,7 +529,7 @@ def get_info_list(vCard, vcard_filepath):
         elif key == 'nickname':
             nickname = str(vCard.nickname.value)
             vcard['Nickname'] = nickname
-            print("\n****** NICKNAME *****\n*****", nickname,"*****\n")
+            print("****** NICKNAME *****\n*****", nickname,"*****\n")
         elif key == 'note':
             note = str(vCard.note.value)
             vcard['Notes'] = note

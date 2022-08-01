@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from sre_parse import State
 import vobject
 import glob
 import csv
@@ -232,6 +233,7 @@ states_abrr = {
     'WY': 'Wyoming'
     }
 
+rec_addr = []
 
 def strip_garbage(item, gc=gc):
     for i in gc:
@@ -251,13 +253,14 @@ def clean_up_address (segment):
         return card
 
 
-def reconstruct_address(addr):
+def reconstruct_address(addr, rec_addr=rec_addr):
+    # print(type(rec_addr))
     po_box = street = city = state = postal_code = country = None
     for i in range(len(addr)):
         # PO BOX Construct
-        if i == 0 and addr[i].upper() == "PO":
-            if addr[1].upper() == "BOX":
-                po_box = "PO Box " + addr[2]
+        if i == 0 and addr[i].upper() == 'PO':
+            if addr[1].upper() == 'BOX':
+                po_box = 'PO Box ' + addr[2]
             if addr[4].upper() in states_list:
                 city = addr[3].title()
                 state = addr[4].upper()
@@ -271,11 +274,40 @@ def reconstruct_address(addr):
                 postal_code = addr[6]
         elif i == 1 and addr[i].upper() == 'HOME':
             # Address Type 'A' Construct for ER
-            if addr[4] in prefix_dir and addr[4] in states_list:
-                street = str(addr[3] + ' ' + str(addr[4].upper()) + ' ' + str(addr[5]) + ' ' + str(addr[6].title()))
-                city = addr[7].title()
-                state = addr[8].upper()
-                postal_code = addr[9]
+            if len(addr) >= 8:
+                if addr[4] in prefix_dir and addr[8] in states_list:
+                    street = str(addr[3] + ' ' + str(addr[4].upper()) + ' ' + str(addr[5]) + ' ' + str(addr[6].title()))
+                    city = addr[7].title()
+                    state = addr[8].upper()
+                    postal_code = addr[9]
+            else:
+                if 'Address' in addr[0] and 'Home' in addr[1] and 'Street' in addr[2]:
+                    try:
+                        if addr[4].upper() in prefix_dir and addr[6].upper() in road_list:
+                            for i in range(len(addr)):
+                                re_street = ' '.join(addr[3:])
+                                if re_street not in rec_addr:
+                                    rec_addr.append(re_street)
+                    except:
+                        pass
+                elif 'Address' in addr[0] and 'Home' in addr[1] and 'City' in addr[2]:
+                    for i in range(len(addr)):
+                        re_city = ' '.join(addr[3:])
+                        if re_city not in rec_addr:
+                            rec_addr.append(re_city)
+                elif 'Address' in addr[0] and 'Home' in addr[1] and 'State' in addr[2]:
+                    for i in range(len(addr)):
+                        re_state = ' '.join(addr[3:])
+                        if re_state not in rec_addr:
+                            rec_addr.append(re_state)
+                elif 'Address' in addr[0] and 'Home' in addr[1] and 'Zip/Post' in addr[2]:
+                    for i in range(len(addr)):
+                        re_postal_code = ' '.join(addr[3:])
+                        if re_postal_code not in rec_addr:
+                            rec_addr.append(re_postal_code)
+                            # print("=============", rec_addr)
+                            street, city, state, postal_code = rec_addr
+                            country = 'US'
         elif i == 2 and addr[i].upper() in road_list:
             # Address Type 'B' Construct
             if addr[4].upper() in states_list:
@@ -283,8 +315,9 @@ def reconstruct_address(addr):
                 city = addr[3].title()
                 state = addr[4].upper()
                 postal_code = addr[5]
-        elif addr[i].lower() == "united" or addr[i] == "US":
-            country = "US"
+        elif addr[i].lower() == 'united' or addr[i] == 'US':
+            print(addr)
+            country = 'US'
             break
     return po_box, street, city, state, postal_code, country
 
@@ -330,10 +363,10 @@ def get_email(vCard):
     if vCard:
         for email in vCard.email_list:
             if 'HOME' in email.params['TYPE']:
-                print(">>>>>", email.value, "HOME")
+                # print(">>>>>", email.value, "HOME")
                 home = 'HOME', email.value.lower()
             elif 'WORK' in email.params['TYPE']:
-                print(">>>>>", email.value, "WORK") 
+                # print(">>>>>", email.value, "WORK") 
                 work = 'WORK', email.value.lower()
         # vCard.email.value).strip()
     return home, work
@@ -351,9 +384,9 @@ def get_data_from_notes(note):
                 date = note[item].split(':')[-1].strip()
 
             if 'Email - Work' in note[item]:
-                work_email = 'WORK', note[item].split(':')[-1].lower().strip()
+                work_email = note[item].split(':')[-1].lower().strip()
             elif 'Email - Home' in note[item]:
-                home_email = 'HOME', note[item].split(':')[-1].lower().strip()
+                home_email = note[item].split(':')[-1].lower().strip()
 
             if 'Address - Home' in note[item]:
                 address = clean_up_address(note[item])
@@ -408,12 +441,15 @@ def get_address(vCard):
             if 'HOME' in adr.params['TYPE']:
                 out = clean_up_address(str(adr.value).strip())
                 home = reconstruct_address(out)
+                print("HOME ADDRESS:", home)
             elif 'WORK' in adr.params['TYPE']:
                 out = clean_up_address(str(adr.value).strip())
                 work = reconstruct_address(out)
+                print("HOME ADDRESS:", work)
             elif 'OTHER' in adr.params['TYPE']:
                 out = clean_up_address(str(adr.value).strip())
                 other = reconstruct_address(out)
+                print("HOME ADDRESS:", other)
             else:
                 logging.warning("Warning: Unrecognized address category in `{}'".format(vCard))
                 adr.prettyPrint()
@@ -460,9 +496,11 @@ def fill_phone_cards(phone_type, phone_num, pos, vcard):
 
 def fill_address_cards(home, work, other, pos, vcard):
     pos = pos + 1
+    # print(">>>HOME>>>:", home)
     if home:
         po_box, street, city, state, postal_code, country = home
         if po_box:
+            # print(po_box + ', ' + city + ' ' + state + ', ' + str(postal_code) + ', ' + country)
             f_addr = po_box + ', ' + city + ' ' + state + ', ' + str(postal_code) + ', ' + country
             if vcard['Address 1 - Formatted'] != f_addr and vcard['Address 2 - Formatted'] != f_addr:
                 vcard['Address ' + str(pos) + ' - Type'] = 'HOME'
@@ -473,15 +511,20 @@ def fill_address_cards(home, work, other, pos, vcard):
                 vcard['Address ' + str(pos) + ' - Country'] = country
                 vcard['Address ' + str(pos) + ' - Formatted'] = f_addr
         else:
-            f_addr = street + '. ' + city + ' ' + state + ', ' + str(postal_code) + ' ' + country
-            if vcard['Address 1 - Formatted'] != f_addr and vcard['Address 2 - Formatted'] != f_addr:
-                vcard['Address ' + str(pos) + ' - Type'] = 'HOME'
-                vcard['Address ' + str(pos) + ' - Street'] = street
-                vcard['Address ' + str(pos) + ' - City'] = city
-                vcard['Address ' + str(pos) + ' - Region'] = state
-                vcard['Address ' + str(pos) + ' - Postal Code'] = postal_code
-                vcard['Address ' + str(pos) + ' - Country'] = country
-                vcard['Address ' + str(pos) + ' - Formatted'] = f_addr
+            # print(str(street) + '. ' + str(city) + ' ' + str(state) + ', ' + str(postal_code) + ' ' + str(country))
+            if all(Address is None for Address in [street, city, state, postal_code, country]):
+                pass
+            else:
+                f_addr = street + '. ' + city + ' ' + state + ', ' + str(postal_code) + ' ' + country
+                if vcard['Address 1 - Formatted'] != f_addr and vcard['Address 2 - Formatted'] != f_addr:
+                    vcard['Address ' + str(pos) + ' - Type'] = 'HOME'
+                    vcard['Address ' + str(pos) + ' - Street'] = street
+                    vcard['Address ' + str(pos) + ' - City'] = city
+                    vcard['Address ' + str(pos) + ' - Region'] = state
+                    vcard['Address ' + str(pos) + ' - Postal Code'] = postal_code
+                    vcard['Address ' + str(pos) + ' - Country'] = country
+                    vcard['Address ' + str(pos) + ' - Formatted'] = f_addr
+            
     if work:
         po_box, street, city, state, postal_code, country = work
         if po_box:
@@ -495,15 +538,19 @@ def fill_address_cards(home, work, other, pos, vcard):
                 vcard['Address ' + str(pos) + ' - Country'] = country
                 vcard['Address ' + str(pos) + ' - Formatted'] = f_addr
         else:
-            f_addr = street + '. ' + city + ' ' + state + ', ' + str(postal_code) + ' ' + country
-            if vcard['Address 1 - Formatted'] != f_addr and vcard['Address 2 - Formatted'] != f_addr:
-                vcard['Address ' + str(pos) + ' - Type'] = 'WORK'
-                vcard['Address ' + str(pos) + ' - Street'] = street
-                vcard['Address ' + str(pos) + ' - City'] = city
-                vcard['Address ' + str(pos) + ' - Region'] = state
-                vcard['Address ' + str(pos) + ' - Postal Code'] = postal_code
-                vcard['Address ' + str(pos) + ' - Country'] = country
-                vcard['Address ' + str(pos) + ' - Formatted'] = f_addr
+            print(">>>>>", str(street) + '. ' + str(city) + ' ' + str(state) + ', ' + str(postal_code) + ' ' + str(country)  )
+            if all(Address is None for Address in [street, city, state, postal_code, country]):
+                pass
+            else:
+                f_addr = street + '. ' + city + ' ' + state + ', ' + str(postal_code) + ' ' + country
+                if vcard['Address 1 - Formatted'] != f_addr and vcard['Address 2 - Formatted'] != f_addr:
+                    vcard['Address ' + str(pos) + ' - Type'] = 'WORK'
+                    vcard['Address ' + str(pos) + ' - Street'] = street
+                    vcard['Address ' + str(pos) + ' - City'] = city
+                    vcard['Address ' + str(pos) + ' - Region'] = state
+                    vcard['Address ' + str(pos) + ' - Postal Code'] = postal_code
+                    vcard['Address ' + str(pos) + ' - Country'] = country
+                    vcard['Address ' + str(pos) + ' - Formatted'] = f_addr
     if other:
         po_box, street, city, state, postal_code, country = other
         if po_box:
@@ -603,22 +650,25 @@ def get_info_list(vCard, vcard_filepath):
             # TODO implement two emails list
             # TODO extract email from notes
             home, work = get_email(vCard)
-            print(">>>>>>>>>>>>>>>>", home, work, "<<<<<<<<<<<<<<<<<<<")
+            # print(">>>>>>>>>>>>>>>>", home, work, "<<<<<<<<<<<<<<<<<<<")
 
             for e in (home, work):
-                e_type, email = e
-                if not check_key(vcard, vcard['E-mail 1 - Value']):
-                    if email != vcard['E-mail 1 - Value']:
-                        vcard['E-mail 1 - Type'] = e_type
-                        vcard['E-mail 1 - Value'] = email
-                elif not check_key(vcard, vcard['E-mail 2 - Value']):
-                    if email != vcard['E-mail 1 - Value'] and email != vcard['E-mail 2 - Value']:
-                        vcard['E-mail 2 - Type'] = e_type
-                        vcard['E-mail 2 - Value'] = email.lower()
+                # print("<<<e>>>", e)
+                if e:
+                    e_type, email = e
+                    if not check_key(vcard, vcard['E-mail 1 - Value']):
+                        if email != vcard['E-mail 1 - Value']:
+                            vcard['E-mail 1 - Type'] = e_type
+                            vcard['E-mail 1 - Value'] = email
+                    elif not check_key(vcard, vcard['E-mail 2 - Value']):
+                        if email != vcard['E-mail 1 - Value'] and email != vcard['E-mail 2 - Value']:
+                            vcard['E-mail 2 - Type'] = e_type
+                            vcard['E-mail 2 - Value'] = email.lower()
 
             
             
         elif key == 'adr':
+            print("---------- key addr ----------")
             home, work, other = get_address(vCard)
             for i in range(3):
                 if not check_key(vcard, vcard['Address 1 - Formatted']):
@@ -627,7 +677,7 @@ def get_info_list(vCard, vcard_filepath):
                     fill_address_cards(home, work, other, i, vcard)
         elif key == 'org':
             org = str(vCard.org.value)
-            for i in ('[', ']', "'"):
+            for i in ('[', ']', "'", '\\'):
                 org = org.replace(i, '')
             vcard['Organization 1 - Type'] = 'WORK'
             vcard['Organization 1 - Name'] = org
@@ -643,19 +693,48 @@ def get_info_list(vCard, vcard_filepath):
             vcard['Name Prefix'] = title
         else:
             # An unused key, like `adr`, `title`, `url`, etc.
+            em_phone_type = em_phone_number = em_date = em_work_email = em_home_email = em_home_addr = em_work_addr = em_other_addr = None
             # print("***UNSUSED KEY***", key, "\t", val)
             em_phone_type, em_phone_number, em_date, em_work_email, em_home_email, em_home_addr, em_work_addr, em_other_addr = get_data_from_notes(vCard.note.value.split('\n'))
-            if 
-                for e in (em_home_email, em_work_email):
-                    e_type, email = e
-                    if not check_key(vcard, vcard['E-mail 1 - Value']):
-                        if email != vcard['E-mail 1 - Value']:
-                            vcard['E-mail 1 - Type'] = e_type
-                            vcard['E-mail 1 - Value'] = email
-                    elif not check_key(vcard, vcard['E-mail 2 - Value']):
-                        if email != vcard['E-mail 1 - Value'] and email != vcard['E-mail 2 - Value']:
-                            vcard['E-mail 2 - Type'] = e_type
-                            vcard['E-mail 2 - Value'] = email.lower()
+            # em_set = [em_home_email, em_work_email]
+            # print("^^^^^^^^", em_set)
+            # print("\n\n-- EM WORK:", em_work_email, type(em_work_email))
+            # print("-- EM HOME:", em_home_email, type(em_home_email),"\n\n")
+            if em_home_email:
+                # print("***** HOME EMAIL *****", em_home_email)
+                #     e_type, email = em_home_email
+                # for e in range(len(em_set)):
+                #     print("e:", e,"em_set", em_set[e])
+                if not check_key(vcard, vcard['E-mail 1 - Value']):
+                    # print(em_home_email, "NOT EQ", vcard['E-mail 1 - Value'])
+                    if em_home_email != vcard['E-mail 1 - Value']:
+                        vcard['E-mail 1 - Type'] = 'HOME'
+                        vcard['E-mail 1 - Value'] = em_home_email
+                elif not check_key(vcard, vcard['E-mail 2 - Value']):
+                    # print(em_home_email, "NOT EQ", vcard['E-mail 1 - Value'])
+                    if em_home_email != vcard['E-mail 1 - Value'] and em_home_email != vcard['E-mail 2 - Value']:
+                        vcard['E-mail 2 - Type'] = 'HOME'
+                        vcard['E-mail 2 - Value'] = em_home_email.lower()
+            elif em_work_email:
+                # for e in range(len(em_set)):
+                #     e_type, email = em_set[e]
+                #     print("e:", e,"em_set", em_set[e]`)
+                # print("***** WORK EMAIL *****", em_work_email)
+                if not check_key(vcard, vcard['E-mail 1 - Value']):
+                    # print(em_home_email, "NOT EQ", vcard['E-mail 1 - Value'])
+                    if em_work_email != vcard['E-mail 1 - Value']:
+                        vcard['E-mail 1 - Type'] = 'WORK'
+                        vcard['E-mail 1 - Value'] = em_work_email
+                elif not check_key(vcard, vcard['E-mail 2 - Value']):
+                    # print(em_home_email, "NOT EQ", vcard['E-mail 1 - Value'])
+                    if em_work_email != vcard['E-mail 1 - Value'] and em_work_email != vcard['E-mail 2 - Value']:
+                        vcard['E-mail 2 - Type'] = 'WORK'
+                        vcard['E-mail 2 - Value'] = em_work_email.lower()
+            for i in range(3):
+                if not check_key(vcard, vcard['Address 1 - Formatted']):
+                    fill_address_cards(em_home_addr, em_work_addr, em_other_addr, i, vcard)
+                elif not check_key(vcard, vcard['Address 2 - Formatted']):
+                    fill_address_cards(em_home_addr, em_work_addr, em_other_addr, i, vcard)
             print("EM PHONE TYPE   :", em_phone_type)
             print("EM PHONE NUMBER :", em_phone_number)
             print("EM DATE         :", em_date)
@@ -695,6 +774,7 @@ def get_info_list(vCard, vcard_filepath):
             # logging.info("Error reading notes from card '{}'".format(vCard))
     if all(Address is None for Address in [work, home, other]):
         # home, work, other = get_address_from_notes(vCard.note.value.split('\n'))
+        print("----------- em address ----------", em_home_addr, em_work_addr)
         for i in range(3):
             if not check_key(vcard, vcard['Address 1 - Formatted']):
                 fill_address_cards(em_home_addr, em_work_addr, em_other_addr, i, vcard)

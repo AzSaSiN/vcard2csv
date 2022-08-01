@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-from email.headerregistry import Address
-from gc import garbage
 import vobject
 import glob
 import csv
@@ -33,6 +31,9 @@ gc = [
     '%',
     '<',
     '>',
+    ']',
+    '[',
+    "'",
     'amp ,', 
     'amp;',
     'amp',
@@ -321,35 +322,53 @@ def get_phone_numbers(vCard):
             raise NotImplementedError("Version not implemented: '{}'".format(vCard.version.value))
     return cell, home, work, fax, other
 
-def get_phone_from_notes(vCard):
+
+def get_email(vCard):
+    home = work = None
+    # print("### vCard ###", vCard)
+    
     if vCard:
-        for item in vCard:
-            if 'Phone' in item:
-                phone = item.split(' ')
+        for email in vCard.email_list:
+            if 'HOME' in email.params['TYPE']:
+                print(">>>>>", email.value, "HOME")
+                home = 'HOME', email.value.lower()
+            elif 'WORK' in email.params['TYPE']:
+                print(">>>>>", email.value, "WORK") 
+                work = 'WORK', email.value.lower()
+        # vCard.email.value).strip()
+    return home, work
+
+def get_data_from_notes(note):
+    phone_type = phone_number = date = work_email = home_email = home_addr = work_addr = other_addr = None
+    if note:
+        for item in range(len(note)):
+            if 'Phone' in note[item]:
+                phone = note[item].split(' ')
                 if len(phone[-1]) == 8 and len(phone[-2]) == 5:
-                    type = strip_garbage(phone[2]).lower()
-                    number = strip_garbage(phone[-2] + phone[-1]) 
-    return type, number
+                    phone_type = strip_garbage(phone[2]).lower()
+                    phone_number = strip_garbage(phone[-2] + phone[-1]) 
+            if 'Create Date:' in note[item]:
+                date = note[item].split(':')[-1].strip()
 
+            if 'Email - Work' in note[item]:
+                work_email = 'WORK', note[item].split(':')[-1].lower().strip()
+            elif 'Email - Home' in note[item]:
+                home_email = 'HOME', note[item].split(':')[-1].lower().strip()
 
-def get_address_from_notes(vcard):
-    home = work = other = None
-    if vcard:
-        for item in range(len(vcard)):
-            if 'Address - Home' in vcard[item]:
-                address = clean_up_address(vcard[item])
-                home = reconstruct_address(address)
-            elif 'Address - Work' in vcard[item]:
-                address = clean_up_address(vcard[item])
-                work = reconstruct_address(address)
-            elif 'Address - Other' in vcard[item]:
-                address = clean_up_address(vcard[item])
-                other = reconstruct_address(address)
-    return home, work, other
+            if 'Address - Home' in note[item]:
+                address = clean_up_address(note[item])
+                home_addr = reconstruct_address(address)
+            elif 'Address - Work' in note[item]:
+                address = clean_up_address(note[item])
+                work_addr = reconstruct_address(address)
+            elif 'Address - Other' in note[item]:
+                address = clean_up_address(note[item])
+                other_addr = reconstruct_address(address)
+    return phone_type, phone_number, date, work_email, home_email, home_addr, work_addr, other_addr
 
-
-def get_notes_from_notes(vcard):
-    for i in vcard.split('\n'):
+###
+def get_notes_from_notes(note):
+    for i in note.split('\n'):
         if 'Description:' in i:
             return i[13:]
 
@@ -524,27 +543,26 @@ def fill_address_cards(home, work, other, pos, vcard):
 
 
 def print_card(vcard):
-    print("*Given Name:", vcard['Given Name'])  # PRINT GIVEN NAME
-    print("*NAME:      ", vcard['Name'])  # PRINT NAME
-    print("*PHONE #1:  ", vcard['Phone 1 - Value']) # PRINT PHONE NUMBER
-    print("*PHONE #2:  ", vcard['Phone 2 - Value']) # PRINT PHONE NUMBER
-    print("*PHONE #3:  ", vcard['Phone 3 - Value']) # PRINT PHONE NUMBER
-    print("*PHONE #4:  ", vcard['Phone 4 - Value']) # PRINT PHONE NUMBER
-    print("*EMAL:      ", vcard['E-mail 1 - Value'])
-    print("*ADDRESS 1: ", vcard['Address 1 - Formatted']) # PRINT ADDRESS
-    print("*ADDRESS 2: ", vcard['Address 2 - Formatted']) # PRINT ADDRESS
-    print("*NICKNAME:  ", vcard['Nickname'])
-    print("*TITLE:     ", vcard['Name Prefix'])
+    print("*Given Name:  ", vcard['Given Name'])  # PRINT GIVEN NAME
+    print("*NAME:        ", vcard['Name'])  # PRINT NAME
+    print("*PHONE #1:    ", vcard['Phone 1 - Value']) # PRINT PHONE NUMBER
+    print("*PHONE #2:    ", vcard['Phone 2 - Value']) # PRINT PHONE NUMBER
+    print("*PHONE #3:    ", vcard['Phone 3 - Value']) # PRINT PHONE NUMBER
+    print("*PHONE #4:    ", vcard['Phone 4 - Value']) # PRINT PHONE NUMBER
+    print("*EMAL  #1:    ", vcard['E-mail 1 - Value'])
+    print("*EMAL  #2:    ", vcard['E-mail 2 - Value'])
+    print("*ADDRESS 1:   ", vcard['Address 1 - Formatted']) # PRINT ADDRESS
+    print("*ADDRESS 2:   ", vcard['Address 2 - Formatted']) # PRINT ADDRESS
+    print("*NICKNAME:    ", vcard['Nickname'])
+    print("*TITLE:       ", vcard['Name Prefix'])
+    print("*ORGANIZATION:", vcard['Organization 1 - Name'])
+    print("*CREATED DATE:", vcard['Created Date'])
+
     # print("*EM-PHONE:  ",vcard["Phone 1 - Value"])
     # print("*EM-PHONE:  ",vcard["Phone 2 - Value"])
     # print("*EM-PHONE:  ",vcard["Phone 3 - Value"])
     # print("*EM-PHONE:  ",vcard["Phone 4 - Value"])
     print("*NOTE:", vcard['Notes'])
-
-
-
-
-
 
 
 def get_info_list(vCard, vcard_filepath):
@@ -559,6 +577,7 @@ def get_info_list(vCard, vcard_filepath):
     name = cell = work = home = fax = other = email = note = None
     vCard.validate()
     for key, val in list(vCard.contents.items()):
+        # print(list(vCard.contents.items()))
         if key == 'fn':
             vcard['Given Name'] = vCard.fn.value
         elif key == 'n':
@@ -580,10 +599,25 @@ def get_info_list(vCard, vcard_filepath):
                 elif not check_key(vcard, vcard['Phone 4 - Value']):
                     fill_phone_cards(i, p[i], str(4), vcard)
         elif key == 'email':
-            email = str(vCard.email.value).strip()
+            # email = str(vCard.email.value).strip()
             # TODO implement two emails list
-            vcard['E-mail 1 - Type'] = "Work"
-            vcard['E-mail 1 - Value'] = email.lower()
+            # TODO extract email from notes
+            home, work = get_email(vCard)
+            print(">>>>>>>>>>>>>>>>", home, work, "<<<<<<<<<<<<<<<<<<<")
+
+            for e in (home, work):
+                e_type, email = e
+                if not check_key(vcard, vcard['E-mail 1 - Value']):
+                    if email != vcard['E-mail 1 - Value']:
+                        vcard['E-mail 1 - Type'] = e_type
+                        vcard['E-mail 1 - Value'] = email
+                elif not check_key(vcard, vcard['E-mail 2 - Value']):
+                    if email != vcard['E-mail 1 - Value'] and email != vcard['E-mail 2 - Value']:
+                        vcard['E-mail 2 - Type'] = e_type
+                        vcard['E-mail 2 - Value'] = email.lower()
+
+            
+            
         elif key == 'adr':
             home, work, other = get_address(vCard)
             for i in range(3):
@@ -591,7 +625,12 @@ def get_info_list(vCard, vcard_filepath):
                     fill_address_cards(home, work, other, i, vcard)
                 elif not check_key(vcard, vcard['Address 2 - Formatted']):
                     fill_address_cards(home, work, other, i, vcard)
-
+        elif key == 'org':
+            org = str(vCard.org.value)
+            for i in ('[', ']', "'"):
+                org = org.replace(i, '')
+            vcard['Organization 1 - Type'] = 'WORK'
+            vcard['Organization 1 - Name'] = org
         elif key == 'nickname':
             nickname = str(vCard.nickname.value)
             vcard['Nickname'] = nickname
@@ -605,35 +644,67 @@ def get_info_list(vCard, vcard_filepath):
         else:
             # An unused key, like `adr`, `title`, `url`, etc.
             # print("***UNSUSED KEY***", key, "\t", val)
+            em_phone_type, em_phone_number, em_date, em_work_email, em_home_email, em_home_addr, em_work_addr, em_other_addr = get_data_from_notes(vCard.note.value.split('\n'))
+            if 
+                for e in (em_home_email, em_work_email):
+                    e_type, email = e
+                    if not check_key(vcard, vcard['E-mail 1 - Value']):
+                        if email != vcard['E-mail 1 - Value']:
+                            vcard['E-mail 1 - Type'] = e_type
+                            vcard['E-mail 1 - Value'] = email
+                    elif not check_key(vcard, vcard['E-mail 2 - Value']):
+                        if email != vcard['E-mail 1 - Value'] and email != vcard['E-mail 2 - Value']:
+                            vcard['E-mail 2 - Type'] = e_type
+                            vcard['E-mail 2 - Value'] = email.lower()
+            print("EM PHONE TYPE   :", em_phone_type)
+            print("EM PHONE NUMBER :", em_phone_number)
+            print("EM DATE         :", em_date)
+            print("EM EMAIL WORK   :", em_work_email)
+            print("EM EMAIL HOME   :", em_home_email)
+            print("EM HOME ADDR    :", em_home_addr)
+            print("EM WORK ADDR    :", em_work_addr)
+            print("EM OTHER ADDR   :", em_other_addr)
+            
+            # date = get_date_from_note(vCard.note.value.split('\n'))
+            vcard['Created Date'] = em_date
+
+            # email = get_email_from_note(vCard.note.value.split('\n'))
+            # print("<<EMAIL>>", email)
+
             pass
     if name is None:
         logging.warning("no name for vCard in file `{}'".format(vcard_filepath))
     if all(telephone_number is None for telephone_number in [cell, work, home, fax, other]):
         ''' Last resort to extract phone numbers'''
         try:
-            type, number = get_phone_from_notes(vCard.note.value.split('\n'))
+            # type, number = get_phone_from_notes(vCard.note.value.split('\n')) # PHONE NUMER PASS ON
             if not check_key(vcard, vcard['Phone 1 - Value']):
-                vcard['Phone 1 - Type'] = type.title()
-                vcard['Phone 1 - Value'] = number
+                vcard['Phone 1 - Type'] = em_phone_type.title()
+                vcard['Phone 1 - Value'] = em_phone_number
             elif not check_key(vcard, vcard['Phone 2 - Value']):
-                vcard['Phone 2 - Type'] = type.title()
-                vcard['Phone 2 - Value'] = number
+                vcard['Phone 2 - Type'] = em_phone_type.title()
+                vcard['Phone 2 - Value'] = em_phone_number
             elif not check_key(vcard, vcard['Phone 3 - Value']):
-                vcard['Phone 3 - Type'] = type.title()
-                vcard['Phone 3 - Value'] = number
+                vcard['Phone 3 - Type'] = em_phone_type.title()
+                vcard['Phone 3 - Value'] = em_phone_number
             elif not check_key(vcard, vcard['Phone 4 - Value']):
-                vcard['Phone 4 - Type'] = type.title()
-                vcard['Phone 4 - Value'] = number
+                vcard['Phone 4 - Type'] = em_phone_type.title()
+                vcard['Phone 4 - Value'] = em_phone_number
         except Exception as err:
             pass
             # logging.info("Error reading notes from card '{}'".format(vCard))
     if all(Address is None for Address in [work, home, other]):
-        home, work, other = get_address_from_notes(vCard.note.value.split('\n'))
+        # home, work, other = get_address_from_notes(vCard.note.value.split('\n'))
         for i in range(3):
             if not check_key(vcard, vcard['Address 1 - Formatted']):
-                fill_address_cards(home, work, other, i, vcard)
+                fill_address_cards(em_home_addr, em_work_addr, em_other_addr, i, vcard)
             elif not check_key(vcard, vcard['Address 2 - Formatted']):
-                fill_address_cards(home, work, other, i, vcard)
+                fill_address_cards(em_home_addr, em_work_addr, em_other_addr, i, vcard)
+
+    if all(Email is None for Email in [email, em_work_email, em_home_email]):
+        email1 = em_work_email
+        email2 = em_home_email
+        print("((WORK))", email1, "\n((HOME))", email2)
 
 
     print_card(vcard)
